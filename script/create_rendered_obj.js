@@ -484,7 +484,14 @@ function renderHandlerInternal(reset_camera, regenInterval) {
                         lines[lindex] = segs.join(" ");
                     }
                 })
-                return lines.join("\n");
+                return {
+                    data: {
+                        id: o.id,
+                        name: o.type,
+                        coords: o.coords,
+                    },
+                    tris: lines.join("\n"),
+                };
             }
         }
         o.tris.forEach(tri => {
@@ -496,7 +503,14 @@ function renderHandlerInternal(reset_camera, regenInterval) {
             }
             local_tris.push(JSON.parse(JSON.stringify(tri)));
         });
-        return trisToObj(local_tris);
+        return {
+            data: {
+                id: o.id,
+                name: o.type,
+                coords: o.coords,
+            },
+            tris: trisToObj(local_tris)
+        };
     }).filter(k => k !== null);
     if (billboards.length > 0) {
         window.addToSceneBillboards(billboards);

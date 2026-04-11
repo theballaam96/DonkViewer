@@ -656,10 +656,18 @@ function populateExtraData(mesh) {
             `;
         }
     }
+    let other_section = "";
+    Object.keys(extraData).forEach(k => {
+        console.log(k)
+        if (!["name", "coords", "infinite_h", "radius", "infinite_y", "height", "path"].includes(k)) {
+            other_section += `<div><strong>${k}:</strong> ${extraData[k]}</div>`
+        }
+    })
     document.getElementById("extra_data_info").innerHTML = `
         <div>
             ${coord_section}
             ${dimensions_section}
+            ${other_section}
         </div>
     `;
 }

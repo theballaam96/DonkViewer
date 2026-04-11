@@ -497,6 +497,8 @@ function parseSetup(map_id, mode, actor_mode) {
                 ],
                 is_prop: true,
                 mode: mode,
+                id: window.readFile(setup_file, obj_start + 0x2A, 2),
+                type: obj_type,
             };
             if (mode == "geo") {
                 if (typeof parsed_models[obj_type] === "string") {

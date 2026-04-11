@@ -115,7 +115,7 @@
             <div class="card p-2 mb-2 ms-2 me-2 mt-2">
                 <div class="d-flex justify-content-between mb-2 pb-1" style="border-bottom: 1px solid gray">
                     <div class="fw-bolder">DonkViewer</div>
-                    <small>v2.7</small>
+                    <small>v2.8</small>
                 </div>
                 <div>Made by Ballaam</div>
                 <div style="font-size: 0.8rem">Contributions from:
@@ -330,6 +330,7 @@
     <script src="script/objects.js" type="text/javascript"></script>
     <script src="script/gap.js" type="text/javascript"></script>
     <script src="script/create_rendered_obj.js" type="text/javascript"></script>
+    <script src="script/url.js" type="text/javascript"></script>
 
     <script>
         // --- Global Variables ---
@@ -624,38 +625,37 @@
 
         function addObjects(list) {
             list.forEach((obj_file, index) => {
-                //console.log(`Loading obj ${index} of size 0x${obj_file.length.toString(16)}`)
-                const loaded_f = loader.parse(obj_file);
+                const loaded_f = loader.parse(obj_file.tris);
                 loadedExtras.push(loaded_f);
                 scene.add(loaded_f);
 
-                // --- CORE FIX FOR VERTEX COLOR SHARING ---
+                loaded_f.userData.objData = obj_file.data; // ⬅️ store data here
+
                 loaded_f.traverse(function(child) {
                     if (child.isMesh) {
                         const geometry = child.geometry;
 
-                        // 1. Un-Index the Geometry
-                        // This forces every face to have its own unique set of vertices,
-                        // preventing the GPU from blending colors across the edges.
                         if (geometry.index) {
-                            geometry.toNonIndexed(); // Duplicates vertices for hard edges
+                            geometry.toNonIndexed();
                         }
-                        
-                        // 2. Compute Normals (essential after un-indexing for good shading)
+
                         geometry.computeVertexNormals();
 
-                        // 3. Apply the Material
                         child.material = new THREE.MeshPhongMaterial({ 
-                            color: 0xffffff,          // White base color
-                            vertexColors: true,       // ⬅️ Keep this, but now the vertices are unique per face
-                            transparent: true,        // Enable transparency support
-                            opacity: 1.0,             // Default opacity
-                            side: THREE.DoubleSide,    // Good for viewing translucent objects
+                            color: 0xffffff,
+                            vertexColors: true,
+                            transparent: true,
+                            opacity: 1.0,
+                            side: THREE.DoubleSide,
                         });
+
                         child.name = `Object ${index}`;
+
+                        // Also attach data to each mesh (safer for raycasting hits)
+                        child.extra = obj_file.data;
                     }
                 });
-            })
+            });
         }
         window.addObjects = addObjects;
         
@@ -805,8 +805,7 @@
             raycaster.setFromCamera(mouse, camera);
 
             // Determine objects to check (all children of the loaded object)
-            const intersects = raycaster.intersectObjects(scene.children.filter(k => k != loadedObject), false);
-
+            const intersects = raycaster.intersectObjects(scene.children.filter(k => k != loadedObject), true);
             if (intersects.length > 0) {
                 const hitMesh = intersects[0].object;
                 highlightEdges(hitMesh);

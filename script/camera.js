@@ -98,7 +98,7 @@ function updateWASD() {
     if (keys.a) camera.position.addScaledVector(leftVector, moveSpeed);
     if (keys.s) camera.position.addScaledVector(forwardVector, -moveSpeed);
     if (keys.d) camera.position.addScaledVector(leftVector, -moveSpeed);
-
+    
     // Apply rotation
     const newRotation = new THREE.Euler(
         pitch,       // X (Pitch)
@@ -106,7 +106,11 @@ function updateWASD() {
         0,    // Z (Roll) - Keeping the existing roll
         'YXZ'           // The order in which the rotations are applied
     );
-
+    window.updateURLData({
+        position: camera.position,
+        rotation: newRotation,
+    })
+    
     // Apply this new Euler rotation to the camera object
     camera.setRotationFromEuler(newRotation);
 }
