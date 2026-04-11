@@ -474,6 +474,7 @@ for (let m = 0; m < marker_checks.length; m++) {
 }
 
 document.getElementById("ortho_camera").addEventListener("click", () => {window.toggleCamera()});
+document.getElementById("map_id_selector").addEventListener("change", window.wipeCustomObjects)
 
 document.getElementById("map_id_selector").innerHTML = Object.keys(map_ids).map(group => {
     return `<optgroup label="${group}">${Object.keys(map_ids[group]).sort().map(map_name => {
@@ -659,7 +660,7 @@ function populateExtraData(mesh) {
     let other_section = "";
     Object.keys(extraData).forEach(k => {
         console.log(k)
-        if (!["name", "coords", "infinite_h", "radius", "infinite_y", "height", "path"].includes(k)) {
+        if (!["name", "coords", "infinite_h", "radius", "infinite_y", "height", "path", "is_custom"].includes(k)) {
             other_section += `<div><strong>${k}:</strong> ${extraData[k]}</div>`
         }
     })
