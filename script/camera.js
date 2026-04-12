@@ -85,6 +85,9 @@ window.setControls = setControls;
 const clock = new THREE.Clock();
 
 function updateWASD() {
+    if (window.add_mode_applying_transform) {
+        return;
+    }
     const delta = clock.getDelta();
     const map_id = document.getElementById("bg_selector").value;
     const moveSpeed = delta * speed * (1000 / 3) * window.getScale(map_id);
@@ -117,6 +120,9 @@ function updateWASD() {
 window.updateWASD = updateWASD;
 
 function wasdMouse(e) {
+    if (window.add_mode_applying_transform) {
+        return;
+    }
     if (!document.getElementById("wasd_controls").checked) {
         return;
     }

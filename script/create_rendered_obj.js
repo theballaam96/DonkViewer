@@ -460,56 +460,33 @@ function renderHandlerInternal(reset_camera, regenInterval) {
     const local_scale = window.getScale(map_id);
     let billboards = [];
     let objects_obj_files = objects.map(o => {
-        let local_tris = [];
         if (o.mode == "geo") {
             if (o.cobj) {
-                // Billboard
                 billboards.push(generateBillboardMesh(o, local_scale));
                 return null;
             } else {
-                // Standard Object
-                let lines = o.obj.split("\n");
-                lines.forEach((line, lindex) => {
-                    if (line.startsWith("v ")) {
-                        let segs = line.split(" ");
-                        let coords = [
-                            parseFloat(segs[1]),
-                            parseFloat(segs[2]),
-                            parseFloat(segs[3]),
-                        ];
-                        coords = window.rotateObject(coords, o.rotation).slice();
-                        for (let j = 0; j < 3; j++) {
-                            segs[j + 1] = ((coords[j] * o.scale) + o.coords[j]) * local_scale;
-                        }
-                        lines[lindex] = segs.join(" ");
-                    }
-                })
                 return {
                     data: {
                         id: o.id,
                         name: o.type,
-                        coords: o.coords,
+                        coords: o.coords.map(k => k * local_scale),
+                        rotation: o.rotation.map(k => (k / 180) * Math.PI),
+                        scale: o.scale * local_scale,
+                        is_custom: o.is_custom ?? false,
                     },
-                    tris: lines.join("\n"),
+                    obj: o.obj,
                 };
             }
         }
-        o.tris.forEach(tri => {
-            for (let i = 0; i < 3; i++) {
-                tri.coords[i] = window.rotateObject(tri.coords[i], o.rotation).slice();
-                for (let j = 0; j < 3; j++) {
-                    tri.coords[i][j] = ((tri.coords[i][j] * o.scale) + o.coords[j]) * local_scale;
-                }
-            }
-            local_tris.push(JSON.parse(JSON.stringify(tri)));
-        });
         return {
             data: {
                 id: o.id,
                 name: o.type,
-                coords: o.coords,
+                coords: o.coords.map(k => k * local_scale),
+                rotation: o.rotation.map(k => (k / 180) * Math.PI),
+                scale: o.scale * local_scale,
             },
-            tris: trisToObj(local_tris)
+            obj: trisToObj(o.tris),
         };
     }).filter(k => k !== null);
     if (billboards.length > 0) {

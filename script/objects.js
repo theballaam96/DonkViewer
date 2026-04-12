@@ -467,6 +467,138 @@ function isObject(value) {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+let custom_objects = [];
+let last_id = 1000;
+function addCustomObject(x, y, z) {
+    const map_scale = window.getScale(document.getElementById("map_id_selector").value);
+    x /= map_scale;
+    y /= map_scale;
+    z /= map_scale;
+    custom_objects.push({
+        class: document.getElementById("add_class_selector").value,
+        type: document.getElementById("add_type_selector").value,
+        coords: [x, y, z],
+        rotation: [0, 0, 0],
+        scale: 0.25,
+        id: last_id,
+        is_custom: true,
+    });
+    console.log(custom_objects[custom_objects.length - 1]);
+    last_id++;
+    window.renderHandler(false);
+}
+window.addCustomObject = addCustomObject;
+
+function wipeCustomObjects() {
+    custom_objects = [];
+    window.selectedTransformObj = null;
+}
+window.wipeCustomObjects = wipeCustomObjects;
+
+function deleteCustomObject() {
+    const id = window.selectedTransformObj.extra.id;
+    custom_objects = custom_objects.filter(k => k.id != id);
+    window.renderHandler(false);
+}
+
+window.add_mode_add = false;
+window.add_mode_set_transform = false;
+window.add_mode_applying_transform = false;
+window.add_mode_dumped = false;
+const transformModes = {
+    't': 'translate',
+    'r': 'rotate',
+    'c': 'scale',
+}
+window.addEventListener('keydown', async (e) => {
+    if (e.key === 'p') window.add_mode_add = true;
+    if (e.key === 'Delete') {
+        deleteCustomObject();
+    }
+    if (e.key === 'x') window.add_mode_set_transform = true;
+    if (Object.keys(transformModes).includes(e.key)) {
+        if (window.selectedTransformObj) {
+            transformControls.setSpace('local');
+            transformControls.attach(window.selectedTransformObj);
+            transformControls.setMode(transformModes[e.key]);
+            window.add_mode_applying_transform = true;
+            controls.enabled = false;
+            if (transformModes[e.key] === "scale") {
+                const obj = window.selectedTransformObj;
+                const s = obj.scale.x;
+                obj.scale.set(s, s, s);
+            } else if (transformModes[e.key] === "rotation") {
+                const id = window.selectedTransformObj.extra.id;
+                const obj_class = custom_objects.find(k => k.id === id).class;
+                if (obj_class != "prop") {
+                    obj.rotation.x = 0;
+                    obj.rotation.z = 0;
+                }
+            }
+        }
+    };
+    if (e.key === 'i') {
+        if (!window.add_mode_dumped) {
+            const id = window.selectedTransformObj.extra.id;
+            const data = custom_objects.find(k => k.id === id);
+            let text = "Unrecognized format";
+            const fmt = document.getElementById("dump_format_selector").value;
+            const map_id = document.getElementById("map_id_selector").value;
+            if (fmt == "json") {
+                text = JSON.stringify(data);
+            } else if (fmt == "ship") {
+                text = `ShipObject(
+                    name="",
+                    map_index=${map_id},
+                    coords=[${data.coords.join(", ")}],
+                    region=None,
+                    rotation=[${data.rotation.join(", ")}],
+                    scale=${data.scale},
+                ),`;
+            }
+            await navigator.clipboard.writeText(text);
+            window.createToast("Text written to clipboard", "success-subtle");
+            window.renderHandler(false);
+        }
+        window.add_mode_dumped = true;
+    }
+});
+window.addEventListener('keyup', (e) => {
+    if (e.key === 'p') window.add_mode_add = false;
+    if (e.key === 'x') window.add_mode_set_transform = false;
+    if (e.key === 'i') window.add_mode_dumped = false;
+    if (Object.keys(transformModes).includes(e.key)) {
+        transformControls.detach();
+        window.add_mode_applying_transform = false;
+        controls.enabled = true;
+        const obj = window.selectedTransformObj;
+        if (obj) {
+            const s = obj.scale.x;
+            const id = window.selectedTransformObj.extra.id;
+            const obj_class = custom_objects.find(k => k.id === id).class;
+            obj.scale.set(s, s, s);
+            if (obj_class != "prop") {
+                obj.rotation.x = 0;
+                obj.rotation.z = 0;
+            }
+            const pos = new THREE.Vector3();
+            const quat = new THREE.Quaternion();
+            const scale = new THREE.Vector3();
+            window.selectedTransformObj.matrixWorld.decompose(pos, quat, scale);
+            const euler = new THREE.Euler();
+            euler.setFromQuaternion(quat, 'XYZ');
+            const map_scale = window.getScale(document.getElementById("map_id_selector").value);
+            custom_objects.forEach((k, i) => {
+                if (k.id === id) {
+                    custom_objects[i].coords = [pos.x / map_scale, pos.y / map_scale, pos.z / map_scale];
+                    custom_objects[i].rotation = [(euler.x / Math.PI) * 180, (euler.y / Math.PI) * 180, (euler.z / Math.PI) * 180];
+                    custom_objects[i].scale = scale.x / map_scale;
+                }
+            })
+        }
+    };
+});
+
 function parseSetup(map_id, mode, actor_mode) {
     let objects = [];
     const setup_file = window.getFile(window.rom_bytes, window.rom_dv, 9, map_id, true);
@@ -606,6 +738,42 @@ function parseSetup(map_id, mode, actor_mode) {
             read_l += 0x16 + (extra_count * 2);
         }
     }
+    // Parse custom objects
+    custom_objects.forEach(obj => {
+        if (obj.class == "prop") {
+            if (!parsed_models[obj.type]) {
+                let temp = handleObject(obj.type, map_id, mode);
+                if (mode == "gaps") {
+                    temp = temp.concat(window.dumpGapTris(temp));
+                }
+                parsed_models[obj.type] = temp;
+            }
+            if ((parsed_models[obj.type].length > 0) || isObject(parsed_models[obj.type])) {
+                let data = {
+                    coords: obj.coords,
+                    scale: obj.scale,
+                    rotation: obj.rotation,
+                    is_prop: true,
+                    mode: mode,
+                    id: obj.id,
+                    type: obj.type,
+                    is_custom: obj.is_custom,
+                };
+                if (mode == "geo") {
+                    if (typeof parsed_models[obj.type] === "string") {
+                        // Obj file
+                        data.obj = parsed_models[obj.type];
+                    } else {
+                        // Assume object
+                        data.cobj = parsed_models[obj.type];
+                    }
+                } else {
+                    data.tris = JSON.parse(JSON.stringify(parsed_models[obj.type]));
+                }
+                objects.push(data);
+            }
+        }
+    })
     return objects;
 }
 

@@ -115,7 +115,7 @@
             <div class="card p-2 mb-2 ms-2 me-2 mt-2">
                 <div class="d-flex justify-content-between mb-2 pb-1" style="border-bottom: 1px solid gray">
                     <div class="fw-bolder">DonkViewer</div>
-                    <small>v2.8</small>
+                    <small>v3.0</small>
                 </div>
                 <div>Made by Ballaam</div>
                 <div style="font-size: 0.8rem">Contributions from:
@@ -178,6 +178,14 @@
                                 data-bs-target="#key-tab-pane" type="button" role="tab"
                                 aria-controls="key-tab-pane" aria-selected="false">
                             <i class="fa-solid fa-key"></i>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link mx-auto" id="spawn-tab" data-bs-toggle="tab"
+                                title="Spawn Object"
+                                data-bs-target="#spawn-tab-pane" type="button" role="tab"
+                                aria-controls="spawn-tab-pane" aria-selected="false">
+                            <i class="fa-solid fa-file-circle-plus"></i>
                         </button>
                     </li>
                 </ul>
@@ -288,6 +296,44 @@
                         <hr />
                         <div id="key_text"></div> 
                     </div>
+                    <div class="tab-pane fade" id="spawn-tab-pane" role="tabpanel" aria-labelledby="spawn-tab" tabindex="0">
+                        <h5>Spawn Object</h5>
+                        <hr />
+                        <div class="mb-2">
+                            <label for="actor_selector">Add Mode: </label>
+                            <input class="form-check-input" type="checkbox" role="switch" id="add_mode_enabled" />
+                        </div>
+                        <div style="color: grey">
+                            <div class="fw-bold">Usage</div>
+                            <ul>
+                                <li>Hold <strong>P</strong> then click to place an object.</li>
+                                <li>Hold <strong>X</strong> to select an object for transform.</li>
+                                <li>Hold <strong>T</strong> to bring up a movement menu, then click and drag to move an object.</li>
+                                <li>Hold <strong>R</strong> to bring up a rotation menu, then click and drag to rotate an object.</li>
+                                <li>Hold <strong>C</strong> to bring up a scale menu, then click and drag the <strong>RED</strong> axis to scale the object.</li>
+                                <li>Press <strong>Del</strong> to delete a selected object.</li>
+                                <li>Press <strong>I</strong> to dump the object details to your clipboard.</li>
+                            </ul>
+                        </div>
+                        <div class="mb-2">
+                            <label for="add_class_selector">Object Class</label>
+                            <select id="add_class_selector" class="form-select">
+                                <option value="prop">Prop</option>
+                                <option value="actor">Actor</option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label for="add_type_selector">Object Type within class</label>
+                            <input id="add_type_selector" class="form-control" type="number" />
+                        </div>
+                        <div class="mb-2">
+                            <label for="dump_format_selector">Dump Format</label>
+                            <select id="dump_format_selector" class="form-select">
+                                <option value="json">JSON</option>
+                                <!-- <option value="ship">K Rool Ship</option> -->
+                            </select>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -305,6 +351,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
     <script src="https://unpkg.com/fflate@0.8.2"></script>
     <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
     <script src="https://twemoji.maxcdn.com/v/latest/twemoji.min.js"></script>
@@ -334,7 +381,7 @@
 
     <script>
         // --- Global Variables ---
-        let scene, camera, renderer, controls;
+        let scene, camera, renderer, controls, transformControls;
         let orthoCamera, perspectiveCamera;
         let raycaster, mouse;
         let loadedObject = null;
@@ -456,6 +503,9 @@
             
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
+
+            transformControls = new THREE.TransformControls(camera, renderer.domElement);
+            scene.add(transformControls);
 
             // Lighting
             scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -625,11 +675,27 @@
 
         function addObjects(list) {
             list.forEach((obj_file, index) => {
-                const loaded_f = loader.parse(obj_file.tris);
+                const loaded_f = loader.parse(obj_file.obj);
+
+                const d = obj_file.data;
+                loaded_f.position.set(
+                    d.coords[0],
+                    d.coords[1],
+                    d.coords[2]
+                );
+
+                loaded_f.rotation.set(
+                    d.rotation[0],
+                    d.rotation[1],
+                    d.rotation[2]
+                );
+
+                loaded_f.scale.setScalar(d.scale);
+
+                loaded_f.userData.objData = d;
+
                 loadedExtras.push(loaded_f);
                 scene.add(loaded_f);
-
-                loaded_f.userData.objData = obj_file.data; // ⬅️ store data here
 
                 loaded_f.traverse(function(child) {
                     if (child.isMesh) {
@@ -650,9 +716,7 @@
                         });
 
                         child.name = `Object ${index}`;
-
-                        // Also attach data to each mesh (safer for raycasting hits)
-                        child.extra = obj_file.data;
+                        child.extra = d;
                     }
                 });
             });
@@ -779,23 +843,28 @@
         function highlightEdges(ref_object) {
             if (selectedEdges) {
                 scene.remove(selectedEdges);
+                selectedEdges.geometry.dispose();
+                selectedEdges.material.dispose();
                 selectedEdges = null;
             }
 
-            if (!ref_object) {
-                return;
-            }
+            if (!ref_object) return;
 
             const edges = new THREE.EdgesGeometry(ref_object.geometry);
+
             const line = new THREE.LineSegments(
                 edges,
-                new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 })
+                new THREE.LineBasicMaterial({ color: 0x000000 })
             );
-            line.position.copy(ref_object.position);
+
+            // ✅ IMPORTANT: match full world transform
+            ref_object.updateWorldMatrix(true, false);
+            line.applyMatrix4(ref_object.matrixWorld);
+
             selectedEdges = line;
             scene.add(selectedEdges);
         }
-
+        window.selectedTransformObj = null;
         function onMeshClick(event) {
             // Calculate mouse position in normalized device coordinates (-1 to +1)
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -803,17 +872,46 @@
 
             // Update the picking ray with the camera and mouse position
             raycaster.setFromCamera(mouse, camera);
-
             // Determine objects to check (all children of the loaded object)
-            const intersects = raycaster.intersectObjects(scene.children.filter(k => k != loadedObject), true);
-            if (intersects.length > 0) {
-                const hitMesh = intersects[0].object;
-                highlightEdges(hitMesh);
-                window.populateExtraData(hitMesh);
+            
+            const add_mode = document.getElementById("add_mode_enabled").checked;
+            if (add_mode) {
+                if (window.add_mode_add) {
+                    const intersects = raycaster.intersectObjects(scene.children, true);
+                    if (intersects.length > 0) {
+                        const hitPoint = intersects[0].point;
+                        window.addCustomObject(hitPoint.x, hitPoint.y, hitPoint.z);
+                    }
+                } else if (window.add_mode_set_transform) {
+                    const intersects = raycaster.intersectObjects(scene.children.filter(k => k != loadedObject), true);
+                    highlightEdges(null);
+                    window.selectedTransformObj = null;
+                    if (intersects.length > 0) {
+                        const hitMesh = intersects[0].object;
+                        if (hitMesh) {
+                            if (hitMesh.extra) {
+                                if (hitMesh.extra.is_custom) {
+                                    window.selectedTransformObj = hitMesh;
+                                    highlightEdges(hitMesh);
+                                    window.populateExtraData(hitMesh);
+                                }
+                            }
+                        }
+                    }
+                }
             } else {
-                // No object hit, deselect
-                highlightEdges(null);
+                const intersects = raycaster.intersectObjects(scene.children.filter(k => k != loadedObject), true); 
+                if (intersects.length > 0) {
+                    const hitMesh = intersects[0].object;
+                    highlightEdges(hitMesh);
+                    window.populateExtraData(hitMesh);
+                } else {
+                    // No object hit, deselect
+                    highlightEdges(null);
+                }
             }
+            
+
         }
 
         function setCookie(name, value, days = 365) {
