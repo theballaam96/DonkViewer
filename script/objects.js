@@ -495,26 +495,27 @@ function wipeCustomObjects() {
 }
 window.wipeCustomObjects = wipeCustomObjects;
 
-function deleteCustomObject(id) {
+function deleteCustomObject() {
+    const id = window.selectedTransformObj.extra.id;
     custom_objects = custom_objects.filter(k => k.id != id);
     window.renderHandler(false);
 }
-window.deleteCustomObject = deleteCustomObject;
 
 window.add_mode_add = false;
-window.add_mode_delete = false;
 window.add_mode_set_transform = false;
 window.add_mode_applying_transform = false;
 window.add_mode_dumped = false;
 const transformModes = {
     't': 'translate',
-    'y': 'rotate',
-    'u': 'scale',
+    'r': 'rotate',
+    'c': 'scale',
 }
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'q') window.add_mode_add = true;
-    if (e.key === 'e') window.add_mode_delete = true;
-    if (e.key === 'r') window.add_mode_set_transform = true;
+window.addEventListener('keydown', async (e) => {
+    if (e.key === 'p') window.add_mode_add = true;
+    if (e.key === 'Delete') {
+        deleteCustomObject();
+    }
+    if (e.key === 'x') window.add_mode_set_transform = true;
     if (Object.keys(transformModes).includes(e.key)) {
         if (window.selectedTransformObj) {
             transformControls.setSpace('local');
@@ -526,21 +527,45 @@ window.addEventListener('keydown', (e) => {
                 const obj = window.selectedTransformObj;
                 const s = obj.scale.x;
                 obj.scale.set(s, s, s);
+            } else if (transformModes[e.key] === "rotation") {
+                const id = window.selectedTransformObj.extra.id;
+                const obj_class = custom_objects.find(k => k.id === id).class;
+                if (obj_class != "prop") {
+                    obj.rotation.x = 0;
+                    obj.rotation.z = 0;
+                }
             }
         }
     };
     if (e.key === 'i') {
         if (!window.add_mode_dumped) {
             const id = window.selectedTransformObj.extra.id;
-            console.log(custom_objects.find(k => k.id === id));
+            const data = custom_objects.find(k => k.id === id);
+            let text = "Unrecognized format";
+            const fmt = document.getElementById("dump_format_selector").value;
+            const map_id = document.getElementById("map_id_selector").value;
+            if (fmt == "json") {
+                text = JSON.stringify(data);
+            } else if (fmt == "ship") {
+                text = `ShipObject(
+                    name="",
+                    map_index=${map_id},
+                    coords=[${data.coords.join(", ")}],
+                    region=None,
+                    rotation=[${data.rotation.join(", ")}],
+                    scale=${data.scale},
+                ),`;
+            }
+            await navigator.clipboard.writeText(text);
+            window.createToast("Text written to clipboard", "success-subtle");
+            window.renderHandler(false);
         }
         window.add_mode_dumped = true;
     }
 });
 window.addEventListener('keyup', (e) => {
-    if (e.key === 'q') window.add_mode_add = false;
-    if (e.key === 'e') window.add_mode_delete = false;
-    if (e.key === 'r') window.add_mode_set_transform = false;
+    if (e.key === 'p') window.add_mode_add = false;
+    if (e.key === 'x') window.add_mode_set_transform = false;
     if (e.key === 'i') window.add_mode_dumped = false;
     if (Object.keys(transformModes).includes(e.key)) {
         transformControls.detach();
@@ -549,14 +574,19 @@ window.addEventListener('keyup', (e) => {
         const obj = window.selectedTransformObj;
         if (obj) {
             const s = obj.scale.x;
+            const id = window.selectedTransformObj.extra.id;
+            const obj_class = custom_objects.find(k => k.id === id).class;
             obj.scale.set(s, s, s);
+            if (obj_class != "prop") {
+                obj.rotation.x = 0;
+                obj.rotation.z = 0;
+            }
             const pos = new THREE.Vector3();
             const quat = new THREE.Quaternion();
             const scale = new THREE.Vector3();
             window.selectedTransformObj.matrixWorld.decompose(pos, quat, scale);
             const euler = new THREE.Euler();
             euler.setFromQuaternion(quat, 'XYZ');
-            const id = window.selectedTransformObj.extra.id;
             const map_scale = window.getScale(document.getElementById("map_id_selector").value);
             custom_objects.forEach((k, i) => {
                 if (k.id === id) {

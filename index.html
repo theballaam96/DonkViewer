@@ -306,25 +306,32 @@
                         <div style="color: grey">
                             <div class="fw-bold">Usage</div>
                             <ul>
-                                <li>Hold <strong>Q</strong> then click to place an object</li>
-                                <li>Hold <strong>E</strong> then click to delete an object</li>
-                                <li>Hold <strong>R</strong> to select an object for transform</li>
-                                <li>Hold <strong>T</strong> to bring up a movement menu, then click and drag to move an object</li>
-                                <li>Hold <strong>Y</strong> to bring up a rotation menu, then click and drag to rotate an object</li>
-                                <li>Hold <strong>U</strong> to bring up a scale menu, then click and drag the <strong>RED</strong> axis to scale the object</li>
-                                <li>Press <strong>I</strong> to dump the object details to the browser console</li>
+                                <li>Hold <strong>P</strong> then click to place an object.</li>
+                                <li>Hold <strong>X</strong> to select an object for transform.</li>
+                                <li>Hold <strong>T</strong> to bring up a movement menu, then click and drag to move an object.</li>
+                                <li>Hold <strong>R</strong> to bring up a rotation menu, then click and drag to rotate an object.</li>
+                                <li>Hold <strong>C</strong> to bring up a scale menu, then click and drag the <strong>RED</strong> axis to scale the object.</li>
+                                <li>Press <strong>Del</strong> to delete a selected object.</li>
+                                <li>Press <strong>I</strong> to dump the object details to your clipboard.</li>
                             </ul>
                         </div>
                         <div class="mb-2">
                             <label for="add_class_selector">Object Class</label>
                             <select id="add_class_selector" class="form-select">
-                                <option value="actor">Actor</option>
                                 <option value="prop">Prop</option>
+                                <option value="actor">Actor</option>
                             </select>
                         </div>
                         <div class="mb-2">
                             <label for="add_type_selector">Object Type within class</label>
                             <input id="add_type_selector" class="form-control" type="number" />
+                        </div>
+                        <div class="mb-2">
+                            <label for="dump_format_selector">Dump Format</label>
+                            <select id="dump_format_selector" class="form-select">
+                                <option value="json">JSON</option>
+                                <!-- <option value="ship">K Rool Ship</option> -->
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -874,19 +881,6 @@
                     if (intersects.length > 0) {
                         const hitPoint = intersects[0].point;
                         window.addCustomObject(hitPoint.x, hitPoint.y, hitPoint.z);
-                    }
-                } else if (window.add_mode_delete) {
-                    const intersects = raycaster.intersectObjects(scene.children.filter(k => k != loadedObject), true);
-                    if (intersects.length > 0) {
-                        const hitMesh = intersects[0].object;
-                        if (hitMesh) {
-                            if (hitMesh.extra) {
-                                if (hitMesh.extra.is_custom) {
-                                    window.deleteCustomObject(hitMesh.extra.id);
-                                    window.selectedTransformObj = null;
-                                }
-                            }
-                        }
                     }
                 } else if (window.add_mode_set_transform) {
                     const intersects = raycaster.intersectObjects(scene.children.filter(k => k != loadedObject), true);
