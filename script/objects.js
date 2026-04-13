@@ -541,6 +541,51 @@ window.addEventListener('keydown', async (e) => {
         if (!window.add_mode_dumped) {
             const id = window.selectedTransformObj.extra.id;
             const data = custom_objects.find(k => k.id === id);
+
+            // --- Build a THREE Euler from your raw values ---
+            const rad = Math.PI / 180;
+
+            const euler = new THREE.Euler(
+                data.rotation[0] * rad,
+                data.rotation[1] * rad,
+                data.rotation[2] * rad,
+                "XYZ" // MUST match intended order
+            );
+
+            // --- Convert to matrix ---
+            const m = new THREE.Matrix4();
+            m.makeRotationFromEuler(euler);
+
+            const e = m.elements;
+
+            // Column-major extraction
+            const m11 = e[0], m12 = e[4], m13 = e[8];
+            const m21 = e[1], m22 = e[5], m23 = e[9];
+            const m31 = e[2], m32 = e[6], m33 = e[10];
+
+            let xr, yr, zr;
+
+            // --- Extract N64-style Euler (X→Y→Z) ---
+            yr = Math.asin(-m31);
+
+            if (Math.abs(Math.cos(yr)) > 1e-6) {
+                xr = Math.atan2(m32, m33);
+                zr = Math.atan2(m21, m11);
+            } else {
+                // Gimbal lock fallback
+                xr = 0;
+                zr = Math.atan2(-m12, m22);
+            }
+
+            // --- Convert back to degrees ---
+            const deg = 180 / Math.PI;
+
+            data.n64_rotation = {
+                xr: xr * deg,
+                yr: yr * deg,
+                zr: zr * deg,
+            };
+
             let text = "Unrecognized format";
             const fmt = document.getElementById("dump_format_selector").value;
             const map_id = document.getElementById("map_id_selector").value;
@@ -552,7 +597,7 @@ window.addEventListener('keydown', async (e) => {
                     map_index=${map_id},
                     coords=[${data.coords.join(", ")}],
                     region=None,
-                    rotation=[${data.rotation.join(", ")}],
+                    rotation=[${data.n64_rotation.join(", ")}],
                     scale=${data.scale},
                 ),`;
             }
