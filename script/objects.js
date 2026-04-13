@@ -580,11 +580,11 @@ window.addEventListener('keydown', async (e) => {
             // --- Convert back to degrees ---
             const deg = 180 / Math.PI;
 
-            data.n64_rotation = {
-                xr: xr * deg,
-                yr: yr * deg,
-                zr: zr * deg,
-            };
+            data.n64_rotation = [
+                xr * deg,
+                yr * deg,
+                zr * deg,
+            ];
 
             let text = "Unrecognized format";
             const fmt = document.getElementById("dump_format_selector").value;
