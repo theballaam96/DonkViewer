@@ -597,6 +597,7 @@ window.addEventListener('keydown', async (e) => {
                     map_index=${map_id},
                     coords=[${data.coords.join(", ")}],
                     region=None,
+                    euler_rotation=[${data.rotation.join(", ")}],
                     rotation=[${data.n64_rotation.join(", ")}],
                     scale=${data.scale},
                 ),`;
