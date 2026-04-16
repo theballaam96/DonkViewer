@@ -631,7 +631,7 @@ function populateExtraData(mesh) {
     document.getElementById("extra_data").classList.remove("d-none");
     document.getElementById("extra_data_name").innerText = extraData.name;
     const coord_section = !["path", "cube"].includes(extraData.shape) ? `
-        ${extraData.coords.map((c, i) => {
+        ${(extraData.actual_coords ?? extraData.coords).map((c, i) => {
             return `<div><span class='fw-bold'>${coord_names[i]}: </span>${fmtFloat(c)}</div>`
         }).join("")}
     ` : `
@@ -660,8 +660,12 @@ function populateExtraData(mesh) {
     let other_section = "";
     Object.keys(extraData).forEach(k => {
         console.log(k)
-        if (!["name", "coords", "infinite_h", "radius", "infinite_y", "height", "path", "is_custom"].includes(k)) {
-            other_section += `<div><strong>${k}:</strong> ${extraData[k]}</div>`
+        if (!["name", "coords", "infinite_h", "radius", "infinite_y", "height", "path", "is_custom", "actual_scale", "actual_coords"].includes(k)) {
+            let used_key = k;
+            if (used_key == "scale" && Object.keys(extraData).includes("actual_scale")) {
+                used_key = "actual_scale";
+            }
+            other_section += `<div><strong>${k}:</strong> ${extraData[used_key]}</div>`
         }
     })
     document.getElementById("extra_data_info").innerHTML = `
